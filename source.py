@@ -2,11 +2,11 @@ import os
 
 import pandas as pd
 
-from chan.fractal import Fractal
-from chan.history import Interval, History
-from chan.segment import Segment
-from chan.stick import Stick
-from chan.stroke import Stroke
+from old.fractal import Fractal
+from old.history import Interval, History
+from old.segment import Segment
+from old.stick import Stick
+from old.stroke import Stroke
 
 
 def load_history_from_csv(history: History):

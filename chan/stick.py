@@ -1,95 +1,91 @@
-import os
-from typing import Dict
-
 import pandas as pd
 
-from chan.history import History
+from chan.layer import Layer
+from chan.source import Source
 
 
-class Stick:
+# 缠论K线类
+class Stick(Layer):
 
-    def __init__(self, history: History, auto_load=False, auto_save=True):
-        self.history = history
-        self.data: Dict[str, pd.DataFrame] = {}
+    def __init__(self, parent: Source, auto_load=False, auto_save=True):
+        super().__init__(parent, auto_load, auto_save)
 
-        if auto_load:
-            self.load()
-            if auto_save:
-                self.save()
-
-    def load(self):
-        for interval, data in self.history.data.items():
-            self.data[interval] = self._merge_sticks(data)
-
-    def _merge_sticks(self, data):
-        sticks = pd.DataFrame(columns=["High", "Low"])
+    # 合并K线
+    def load_interval(self, data):
+        # 初始化空的K线数据集
+        sticks = pd.DataFrame(columns=self.columns)
 
         if len(data) == 0:
             return sticks
 
-        current = data.iloc[0].copy()
-        sticks.loc[current.name] = current[["High", "Low"]]
+        # 保存第一条K线
+        current = self._get_item(data, 0)
+        self._keep_item(sticks, current)
 
+        # 遍历剩余K线
         index = 1
         while index < len(data):
+            # 记录前一条K线
             before = current
-            current = data.iloc[index].copy()
+            # 获得当前K线
+            current = self._get_item(data, index).copy()
+            # 根据合并方向决定合并最低价，还是最高价
+            merge_column = "Low" if self._go_up(before, current) else "High"
 
-            up = current["High"] > before["High"] and current["Low"] > before["Low"]
-            down = current["High"] < before["High"] and current["Low"] < before["Low"]
-
-            if not up and not down:
-                sticks.drop(before.name, inplace=True)
-                sticks.loc[current.name] = current[["High", "Low"]]
+            # 如果无法确认K线方向，则删除前一条K线，从当前K线（用于处理最初的数据）
+            if not self._go_up(before, current) and not self._go_down(before, current):
+                self._drop_item(sticks, before)
+                self._keep_item(sticks, current)
                 continue
 
-            while index < len(data) - 1:
-                after = data.iloc[index + 1].copy()
+            # 保留最后一条K线
+            if index == len(data) - 1:
+                self._keep_item(sticks, current)
 
+            # 检查后续K线，直到无法合并
+            while index < len(data) - 1:
+                # 获得下一条K线
+                after = self._get_item(data, index + 1).copy()
+
+                # 如果当前K线包含下一条K线，则将其合并
                 if self._can_merge_inside(current, after):
-                    if up:
-                        current["Low"] = after["Low"]
-                    else:
-                        current["High"] = after["High"]
+                    current[merge_column] = after[merge_column]
                     index += 1
+                # 如果当前K线被下一条K线包含，则合并到下一条K线
                 elif self._can_merge_outside(current, after):
-                    if up:
-                        after["Low"] = current["Low"]
-                    else:
-                        after["High"] = current["High"]
+                    after[merge_column] = current[merge_column]
                     current = after
                     index += 1
+                # 如果没有包含关系，则保留当前K线，继续处理下一条K线
                 else:
-                    sticks.loc[current.name] = current[["High", "Low"]]
+                    self._keep_item(sticks, current)
                     break
-
-            if index == len(data) - 1:
-                sticks.loc[current.name] = current[["High", "Low"]]
 
             index += 1
 
         return sticks
 
+    # K线是否向上
+    @staticmethod
+    def _go_up(first, second):
+        return first["High"] <= second["High"] and first["Low"] <= second["Low"]
+
+    # K线是否向下
+    @staticmethod
+    def _go_down(first, second):
+        return first["High"] >= second["High"] and first["Low"] >= second["Low"]
+
+    # 当前K线是否包含下一条K线
     @staticmethod
     def _can_merge_inside(current, after):
         return current["High"] >= after["High"] and current["Low"] <= after["Low"]
 
+    # 当前K线是否被下一条K线包含
     @staticmethod
     def _can_merge_outside(current, after):
         return current["High"] <= after["High"] and current["Low"] >= after["Low"]
 
-    def save(self):
-        folder = f'../data/{self.history.symbol}'
-        os.makedirs(folder, exist_ok=True)
-        for interval, data in self.data.items():
-            if data is not None:
-                data.to_csv(f'{folder}/stick_{interval}.csv', index_label='Date')
-
-    def get_data(self, interval):
-        return self.data.get(interval)
-
 
 if __name__ == '__main__':
-    stick = Stick(History("AAPL",
-                          auto_load=True)
-                  , auto_load=True)
+    source = Source("AAPL", auto_load=False)
+    stick = Stick(source, auto_load=True)

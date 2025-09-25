@@ -1,88 +1,72 @@
-import os
-from typing import Dict
-
-import numpy as np
 import pandas as pd
 
 from chan.fractal import Fractal
-from chan.history import History
+from chan.layer import Layer
+from chan.segment import Segment
+from chan.source import Source
 from chan.stick import Stick
 from chan.stroke import Stroke
 
 
-class Pivot:
+# 缠论中枢类
+class Pivot(Layer):
 
-    def __init__(self, stroke: Stroke, auto_load=False, auto_save=True):
-        self.stroke = stroke
-        self.data: Dict[str, pd.DataFrame] = {}
+    def __init__(self, parent: Segment, auto_load=False, auto_save=True):
+        super().__init__(parent, auto_load, auto_save)
 
-        if auto_load:
-            self.load()
-            if auto_save:
-                self.save()
+    def load_interval(self, data):
+        # 初始化空的中枢数据集
+        pivots = pd.DataFrame(columns=self.columns)
 
-    def load(self):
-        for interval, data in self.stroke.data.items():
-            self.data[interval] = self._find_segment(data)
+        if len(data) < 5:
+            return pivots
 
-    def _find_segment(self, data):
-        segments = pd.DataFrame(columns=["High", "Low"])
-
-        if len(data) == 0:
-            return segments
-
+        # 遍历线段，寻找中枢
         index = 0
-        while index < len(data) - 3:
-            start = data.iloc[index]
-            end = None
+        while index < len(data) - 5:
+            # 记录起点
+            enter = self._get_item(data, index)
+            start = self._get_item(data, index + 1)
 
-            for step in range(3, len(data) - 1 - index, 2):
-                min_high, max_low = self._get_min_high_max_low(data, index, index + step)
-                if min_high < max_low:
-                    step -= 2
+            # 检查后续线段，寻找中枢
+            step = 0
+            for i in range(1, len(data) - 2 - index):
+                first = self._get_item(data, index + i + 1)
+                second = self._get_item(data, index + i + 2)
+
+                # 计算重叠区间
+                overlap_high = min(start["High"], first["High"])
+                overlap_low = max(start["Low"], first["Low"])
+
+                # 如果有重叠，继续寻找中枢
+                if overlap_high >= overlap_low:
+                    step = i
+                    start = pd.Series({
+                        "Date": first["Date"],
+                        "High": overlap_high,
+                        "Low": overlap_low
+                    })
+                else:
                     break
-                end = data.iloc[index + step]
 
-            index += step
+            # 如果找到了中枢，记录终点
+            if step > 0:
+                index += step
+                end = self._get_item(data, index + 1)
 
-            if end is None:
-                end = data.iloc[index]
+                # 保留中枢的起点和终点
+                self._keep_item(pivots, start)
+                self._keep_item(pivots, end)
+            else:
+                index += 1
 
-            segments.loc[start.name] = start
-            segments.loc[end.name] = end
-
-        return segments
-
-    @staticmethod
-    def _get_min_high_max_low(data, begin, end):
-        min_high, max_low = None, None
-
-        for index in range(begin, end + 1):
-            current = data.iloc[index]
-            if not np.isnan(current["High"]):
-                if min_high is None or current["High"] < min_high:
-                    min_high = current["High"]
-            if not np.isnan(current["Low"]):
-                if max_low is None or current["Low"] > max_low:
-                    max_low = current["Low"]
-
-        return min_high, max_low
-
-    def save(self):
-        folder = f'../data/{self.stroke.fractal.stick.history.symbol}'
-        os.makedirs(folder, exist_ok=True)
-        for interval, data in self.data.items():
-            if data is not None:
-                data.to_csv(f'{folder}/segment_{interval}.csv', index_label='Date')
-
-    def get_data(self, interval):
-        return self.data.get(interval)
+        return pivots
 
 
 if __name__ == '__main__':
-    segment = Pivot(Stroke(Fractal(Stick(History("AAPL",
-                                                   auto_load=True),
-                                           auto_load=True),
-                                     auto_load=True),
-                             auto_load=True),
-                      auto_load=True)
+    source = Source("AAPL", auto_load=False)
+    stick = Stick(source, auto_load=False)
+    fractal = Fractal(stick, auto_load=False)
+    stroke = Stroke(fractal, auto_load=False)
+    segment = Segment(stroke, auto_load=False)
+    pivot = Pivot(segment, auto_load=True)
