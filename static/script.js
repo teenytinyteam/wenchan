@@ -1,4 +1,3 @@
-// Function to fetch data from the API
 async function fetchData(symbol, interval) {
     try {
         const response = await fetch(`/api/${symbol}/${interval}`);
@@ -12,52 +11,13 @@ async function fetchData(symbol, interval) {
     }
 }
 
-// Update chart with new data
-async function updateChart(symbol, interval) {
-    const data = await fetchData(symbol, interval);
-    let dates;
-    if (data) {
-        option.series[0].data = data.history.map(item => [
-            item[1],
-            item[2],
-            item[3],
-            item[4]
-        ]);
-        option.series[1].data = data.stick.map(item => [
-            item[1],
-            item[2],
-            item[1],
-            item[2]
-        ]);
-        option.series[2].data = data.fractal.map(item => item[1]);
-        option.series[3].data = data.fractal.map(item => item[2]);
-        option.series[4].data = data.stroke.map(item => item[1] == '' ? item[2] : item[1]);
-        option.series[5].data = data.segment.map(item => item[1] == '' ? item[2] : item[1]);
-        option.xAxis.data = data.history.map(item => item[0]);
-        option.title.text = symbol;
-
-        myChart.setOption(option, {
-            notMerge: true,
-            lazyUpdate: false,
-            silent: false
-        });
-    } else {
-        console.log("No data to update the chart.");
-    }
-}
-
 const chartDom = document.getElementById('candlestick-chart');
-const myChart = echarts.init(chartDom);
+let myChart = echarts.init(chartDom);
+
+let chanData;
+let layers;
 
 const option = {
-    title: {
-        text: '',
-        left: 'center',
-        textStyle: {
-            fontSize: 18,
-            fontWeight: 'bold'
-        }
-    },
     tooltip: {
         trigger: 'axis',
         axisPointer: {
@@ -66,12 +26,12 @@ const option = {
         formatter: function (params) {
             const data = params[0].data;
             return `
-                        <div style="font-weight: bold;">${params[0].axisValue}</div>
+                        <div style="font-weight: bold;">${data[1]}</div>
                         <div style="margin-top: 5px;">
-                            Open: $${data[1].toFixed(2)}<br/>
-                            Close: $${data[2].toFixed(2)}<br/>
-                            Low: $${data[3].toFixed(2)}<br/>
-                            High: $${data[4].toFixed(2)}
+                            开盘：$${data[2].toFixed(2)}<br/>
+                            收盘：$${data[3].toFixed(2)}<br/>
+                            最低：$${data[4].toFixed(2)}<br/>
+                            最高：$${data[5].toFixed(2)}
                         </div>
                     `;
         }
@@ -99,14 +59,16 @@ const option = {
         {
             type: 'inside',
             start: 50,
-            end: 100
+            end: 100,
+            minValueSpan: 5
         },
         {
             show: true,
             type: 'slider',
             top: '90%',
             start: 50,
-            end: 100
+            end: 100,
+            minValueSpan: 5
         }
     ],
     series: [
@@ -114,17 +76,29 @@ const option = {
             name: 'Stock Price',
             type: 'candlestick',
             data: [],
+            encode: {
+                x: [0],
+                y: [1, 2, 3, 4]
+            },
+            barMinWidth: 1,
+            barMaxWidth: 20,
             itemStyle: {
-                color: '#06B83F',        // Color for bullish candles (close > open)
-                color0: '#E53E3E',       // Color for bearish candles (close < open)
-                borderColor: '#06B83F',   // Border color for bullish candles
-                borderColor0: '#E53E3E'   // Border color for bearish candles
+                color: '#06B83F',
+                color0: '#E53E3E',
+                borderColor: '#06B83F',
+                borderColor0: '#E53E3E'
             }
         },
         {
             name: 'Stick',
             type: 'candlestick',
             data: [],
+            encode: {
+                x: [0],
+                y: [1, 2, 3, 4]
+            },
+            barMinWidth: 1,
+            barMaxWidth: 20,
             itemStyle: {
                 color: '#E0A800',
                 color0: '#E0A800',
@@ -136,6 +110,10 @@ const option = {
             name: 'Bottom Fractal',
             type: 'scatter',
             data: [],
+            encode: {
+                x: [0],
+                y: [1]
+            },
             symbol: 'triangle',
             symbolSize: 8,
             symbolRotate: 0,
@@ -150,6 +128,10 @@ const option = {
             name: 'Top Fractal',
             type: 'scatter',
             data: [],
+            encode: {
+                x: [0],
+                y: [1]
+            },
             symbol: 'triangle',
             symbolSize: 8,
             symbolRotate: 180,
@@ -164,12 +146,16 @@ const option = {
             name: 'Stroke',
             type: 'line',
             data: [],
+            encode: {
+                x: [0],
+                y: [1]
+            },
             connectNulls: true,
             symbol: 'circle',
             symbolSize: 4,
             lineStyle: {
                 color: '#4A90E2',
-                width: 2
+                width: 1
             },
             itemStyle: {
                 color: '#4A90E2',
@@ -181,37 +167,173 @@ const option = {
             name: 'Segment',
             type: 'line',
             data: [],
+            encode: {
+                x: [0],
+                y: [1]
+            },
             connectNulls: true,
             symbol: 'circle',
             symbolSize: 4,
             lineStyle: {
                 color: '#FF6B35',
-                width: 2
+                width: 1
             },
             itemStyle: {
                 color: '#FF6B35',
                 borderColor: '#E55A2B',
                 borderWidth: 1
             }
+        },
+        {
+            name: 'Pivot',
+            type: 'custom',
+            data: [],
+            encode: {
+                x: [0, 1],
+                y: [2, 3]
+            },
+            renderItem: function (params, api) {
+                const startDate = api.ordinalRawValue(0);
+                const endDate = api.ordinalRawValue(1);
+                const high = api.value(2);
+                const low = api.value(3);
+
+                const startCoord = api.coord([startDate, high]);
+                const endCoord = api.coord([endDate, low]);
+
+                return {
+                    type: 'rect',
+                    shape: {
+                        x: startCoord[0],
+                        y: endCoord[1],
+                        width: endCoord[0] - startCoord[0],
+                        height: startCoord[1] - endCoord[1]
+                    },
+                    style: {
+                        fill: 'rgba(138, 138, 135, 0.2)',
+                        stroke: '#8A8A87',
+                        lineWidth: 1
+                    }
+                };
+            }
         }
     ]
 };
-
 myChart.setOption(option);
 
-updateChart('AAPL', '1d');
+async function initChart(symbol, interval, newLayers) {
+    chanData = await fetchData(symbol, interval);
+    layers = [true, false, false, false, false, false];
 
-// Make chart responsive
+    myChart = echarts.init(chartDom);
+
+    if (chanData) {
+        option.series[0].data = chanData.source;
+        option.xAxis.data = chanData.source.map(item => item[0]);
+
+        myChart.setOption(option, {
+            notMerge: true,
+            lazyUpdate: false,
+            silent: false
+        });
+        updateChart(newLayers);
+    } else {
+        console.log("No data to update the chart.");
+    }
+}
+
+async function updateChart(newLayers) {
+    if (chanData) {
+        if (newLayers[1] !== layers[1]) {
+            let data = []
+            if (newLayers[1]) {
+                data = chanData.stick;
+            }
+            myChart.setOption({
+                series: [
+                    {
+                        name: 'Stick',
+                        data: data
+                    }
+                ]
+            });
+        }
+        if (newLayers[2] !== layers[2]) {
+            let dataBottom = [], dataTop = [];
+            if (newLayers[2]) {
+                dataBottom = chanData.fractal.map(item => [item[0], item[1]]);
+                dataTop = chanData.fractal.map(item => [item[0], item[2]]);
+            }
+            myChart.setOption({
+                series: [
+                    {
+                        name: 'Bottom Fractal',
+                        data: dataBottom
+                    },
+                    {
+                        name: 'Top Fractal',
+                        data: dataTop
+                    }
+                ]
+            });
+        }
+        if (newLayers[3] !== layers[3]) {
+            let data = []
+            if (newLayers[3]) {
+                data = chanData.stroke.map(item => [item[0], item[1] === '' ? item[2] : item[1]]);
+            }
+            myChart.setOption({
+                series: [
+                    {
+                        name: 'Stroke',
+                        data: data
+                    }
+                ]
+            });
+        }
+        if (newLayers[4] !== layers[4]) {
+            let data = []
+            if (newLayers[4]) {
+                data = chanData.segment.map(item => [item[0], item[1] === '' ? item[2] : item[1]]);
+            }
+            myChart.setOption({
+                series: [
+                    {
+                        name: 'Segment',
+                        data: data
+                    }
+                ]
+            });
+        }
+        if (newLayers[5] !== layers[5]) {
+            let data = []
+            if (newLayers[5]) {
+                data = chanData.pivot;
+            }
+            myChart.setOption({
+                series: [
+                    {
+                        name: 'Pivot',
+                        data: data
+                    }
+                ]
+            });
+        }
+        layers = newLayers;
+    } else {
+        console.log("No data to update the chart.");
+    }
+}
+
 window.addEventListener('resize', function () {
     myChart.resize();
 });
 
-// Add some interactivity
 myChart.on('click', function (params) {
     if (params.componentType === 'series') {
         const dataIndex = params.dataIndex;
         const dates = option.xAxis.data;
         const data = params.data;
-        console.log(`Clicked on ${dates[dataIndex]}: Open=${data[1]}, Close=${data[2]}, Low=${data[3]}, High=${data[4]}`);
+        console.log(`Clicked on ${dates[dataIndex]}: 开盘=${data[1]}, 收盘=${data[2]}, 最低=${data[3]}, 最高=${data[4]}`);
     }
 });

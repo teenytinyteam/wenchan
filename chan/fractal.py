@@ -9,19 +9,15 @@ from chan.stick import Stick
 # 缠论分型类
 class Fractal(Layer):
 
-    def __init__(self, parent: Stick, auto_load=False, auto_save=True):
-        super().__init__(parent, auto_load, auto_save)
-
-    def load_interval(self, data):
-        # 初始化空的分型数据集
-        fractals = pd.DataFrame(columns=self.columns)
-
+    # 生成一个时间周期的数据（分辨分型）
+    def generate_interval(self, interval, data):
+        # 初始化分型数据集
+        fractals = pd.DataFrame(columns=["High", "Low"])
         if len(data) == 0:
             return fractals
 
-        # 遍历K线，寻找分型
+        # 遍历线，寻找分型
         for index in range(1, len(data) - 1):
-            # 记录当前K线，和前后各一条K线
             before = self._get_item(data, index - 1)
             current = self._get_item(data, index).copy()
             after = self._get_item(data, index + 1)
@@ -54,6 +50,11 @@ class Fractal(Layer):
 
 
 if __name__ == '__main__':
-    source = Source("AAPL", auto_load=False)
-    stick = Stick(source, auto_load=False)
-    fractal = Fractal(stick, auto_load=True)
+    source = Source("AAPL")
+    source.load_from_csv()
+
+    stick = Stick(source)
+    stick.load_from_csv()
+
+    fractal = Fractal(stick)
+    fractal.generate()

@@ -2,7 +2,7 @@ from enum import Enum
 
 import yfinance as yf
 
-from chan.base import Base, Interval
+from chan.layer import Layer
 
 
 # Yahoo财经数据不同周期可下载最大范围
@@ -17,29 +17,22 @@ class Period(Enum):
 
 
 # Yahoo财经数据源类
-class Source(Base):
+class Source(Layer):
 
-    # 下载数据
-    def load(self):
-        for interval in Interval:
-            self._load_from_yahoo(interval)
-
-    # 从Yahoo财经下载数据
-    def _load_from_yahoo(self, interval):
+    # 下载一个时间周期的数据
+    def generate_interval(self, interval, data):
         try:
             ticker = yf.Ticker(self.symbol)
-            data = ticker.history(
+            return ticker.history(
                 period=Period[interval.name].value,
                 interval=interval.value,
                 actions=False
             )
-            self.data[interval.value] = data
-            return data
-
         except Exception as e:
             print(f"Error fetching {self.symbol} data for {interval.value}: {e}")
             return None
 
 
 if __name__ == '__main__':
-    source = Source("AAPL", auto_load=True)
+    source = Source("AAPL")
+    source.generate()
