@@ -15,47 +15,44 @@ class Pivot(Layer):
     def generate_interval(self, interval, data):
         # 初始化空的中枢数据集
         pivots = pd.DataFrame(columns=["High", "Low"])
-        if len(data) < 2:
+        if len(data) < 5:
             return pivots
 
         # 遍历线段，寻找中枢
-        index = 0
-        while index < len(data) - 2:
-            first = self._get_item(data, index)
-            second = self._get_item(data, index + 1).copy()
+        index = 4
+        while index < len(data):
+            before = self._get_item(data, index - 4)
+            first = self._get_item(data, index - 3).copy()
 
             # 计算中枢区间
-            pivot_range = self._get_range(first, second)
+            segments = data.iloc[index - 3: index + 1]
+            zone = {"high": segments["High"].min(), "low": segments["Low"].max()}
 
-            step = 0
-            for i in range(0, len(data) - 3 - index, 2):
-                current = self._get_item(data, index + i + 2)
-                after = self._get_item(data, index + i + 3)
+            # 判断中枢是否成立
+            if (zone["high"] > zone["low"]
+                    and (self._is_top(before) and before["High"] > zone["low"]
+                         or self._is_bottom(before) and before["Low"] < zone["high"])):
+                # 中枢扩展
+                while index < len(data) - 2:
+                    next_segments = data.iloc[index + 1: index + 3]
+                    next_zone = {"high": next_segments["High"].min(), "low": next_segments["Low"].max()}
+                    # 离开中枢区间，则结束
+                    if self._out_of_range(zone, next_zone):
+                        break
+                    index += 2
 
-                # 离开中枢区间，则结束
-                next_range = self._get_range(current, after)
-                if self._out_of_range(pivot_range, next_range):
-                    break
-
-                # 重新计算中枢区间
-                pivot_range[0] = min(pivot_range[0], next_range[0])
-                pivot_range[1] = max(pivot_range[1], next_range[1])
-
-                step += 2
-
-            if step > 2:
-                # 中枢成立
-                current = self._get_item(data, index + step).copy()
-                if self._is_top(second):
-                    second["High"] = pivot_range[0]
-                    current["Low"] = pivot_range[1]
+                # 保存中枢
+                last = self._get_item(data, index).copy()
+                if self._is_top(first):
+                    first["High"] = zone["high"]
+                    last["Low"] = zone["low"]
                 else:
-                    current["High"] = pivot_range[0]
-                    second["Low"] = pivot_range[1]
+                    first["Low"] = zone["low"]
+                    last["High"] = zone["high"]
 
-                self._keep_item(pivots, second)
-                self._keep_item(pivots, current)
-                index += step + 1
+                self._keep_item(pivots, first)
+                self._keep_item(pivots, last)
+                index += 4
             else:
                 # 中枢不成立
                 index += 1
@@ -65,10 +62,10 @@ class Pivot(Layer):
         while index < len(pivots) - 3:
             first = self._get_item(pivots, index)
             second = self._get_item(pivots, index + 1)
+            first_pivot = self._get_range(first, second)
+
             third = self._get_item(pivots, index + 2)
             fourth = self._get_item(pivots, index + 3)
-
-            first_pivot = self._get_range(first, second)
             second_pivot = self._get_range(third, fourth)
 
             # 中枢同方向，且有重叠，则合并中枢
@@ -90,20 +87,20 @@ class Pivot(Layer):
 
         return pivots
 
+    # 离开中枢
+    @staticmethod
+    def _out_of_range(pivot_range, next_range):
+        return next_range["high"] < pivot_range["low"] or next_range["low"] > pivot_range["high"]
+
     # 计算中枢区间
     def _get_range(self, first, second):
         high = first["High"] if self._is_top(first) else second["High"]
         low = first["Low"] if self._is_bottom(first) else second["Low"]
-        return [high, low]
-
-    # 离开中枢
-    @staticmethod
-    def _out_of_range(pivot_range, next_range):
-        return next_range[0] < pivot_range[1] or next_range[1] > pivot_range[0]
+        return {"high": high, "low": low}
 
 
 if __name__ == '__main__':
-    source = Source("AAPL")
+    source = Source("002594.SZ")
     source.load_from_csv()
 
     stick = Stick(source)

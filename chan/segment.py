@@ -10,103 +10,122 @@ from chan.stroke import Stroke
 # 缠论线段类
 class Segment(Layer):
 
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.length = 3
+
     # 生成一个时间周期的数据（划分线段）
     def generate_interval(self, interval, data):
         # 初始化空的线段数据集
         segments = pd.DataFrame(columns=["High", "Low"])
-        if len(data) == 0:
+        if len(data) <= self.length:
             return segments
 
-        # 用于存储短线段的临时列表
-        short_segments = []
+        # 等待处理的笔
+        strokes = []
 
-        # 遍历笔，寻找线段
-        index = 0
-        while index < len(data) - 3:
-            start = self._get_item(data, index)
+        # 遍历所有笔
+        for index in range(len(data)):
+            item = self._get_item(data, index)
+            strokes.append({"index": index, "item": item})
 
-            # 检查后续笔，直到无法构成更长的线段
-            step = 0
-            for i in range(0, len(data) - 3 - index, 2):
-                first = self._get_item(data, index + i + 1)
-                third = self._get_item(data, index + i + 3)
-                # 如果第三笔不延续第一笔的走势，则当前线段结束
-                if not self._go_up_and_up(first, third) and not self._go_down_and_down(first, third):
-                    step = i + 1
-                    break
-                # 线段延续
-                step = i + 3
-
-            # 保存完整线段和短线段
-            short_segments.append([index, start])
-
-            # 记录终点
-            index += step
-            end = self._get_item(data, index)
-
-            # 保留线段的起点和终点
-            self._keep_item(segments, start)
-            self._keep_item(segments, end)
-
-            # 合并之前的短c
-            if step >= 3:
-                short_segments = self._merge_short_segments(segments, short_segments)
+            count = len(strokes)
+            if count == 3:
+                strokes = self._three_strokes(segments, strokes)
+            elif count == 4:
+                strokes = self._four_strokes(segments, strokes)
+            elif count == 5:
+                strokes = self._five_strokes(segments, strokes)
+            elif count >= 6 and count % 2 == 0:
+                strokes = self._six_strokes(segments, strokes)
+            elif count >= 7 and count % 2 != 0:
+                strokes = self._seven_strokes(segments, strokes)
 
         return segments
 
-    # 判断两笔是否持续向上
-    def _go_up_and_up(self, first, second):
-        if self._is_top(first) and self._is_top(second):
-            return second["High"] >= first["High"]
-        return False
+    # 如果第二笔延续之前的趋势，则合并到前线段
+    def _three_strokes(self, segments, strokes):
+        current = strokes[0]
+        second = strokes[2]
 
-    # 判断两笔是否持续向下
-    def _go_down_and_down(self, first, second):
-        if self._is_bottom(first) and self._is_bottom(second):
-            return second["Low"] <= first["Low"]
-        return False
+        if (self._is_top(current["item"]) and second["item"]["High"] >= current["item"]["High"]
+                or self._is_bottom(current["item"]) and second["item"]["Low"] <= current["item"]["Low"]):
+            return [second]
+        return strokes
 
-    # 合并短线段
-    def _merge_short_segments(self, segments, short_segments):
-        if len(short_segments) < 2:
-            return []
+    # 判断三笔是否组成完整的线段
+    def _four_strokes(self, segments, strokes):
+        current = strokes[0]
+        first = strokes[1]
+        third = strokes[3]
 
-        # 取出首尾两个线段
-        first = short_segments[0][1]
-        last = short_segments[-1][1]
+        if (self._is_top(current["item"]) and third["item"]["Low"] <= first["item"]["Low"]
+                or self._is_bottom(current["item"]) and third["item"]["High"] >= first["item"]["High"]):
+            self._keep_item(segments, current["item"])
+            return [third]
+        return strokes
 
-        # 如果首尾都是向下笔，则保留最高价的笔，删除其他笔。等同于将所有短线段合并到前后完整的线段
-        if self._is_bottom(first) and self._is_bottom(last):
-            max_high_item = max(short_segments, key=lambda x: x[1]["High"])
-            for item in short_segments:
-                if item is not max_high_item:
-                    segments.drop(item[1].name, inplace=True)
-        # 如果首尾都是向上笔，则保留最低价的笔，删除其他笔。等同于将所有短线段合并到前后完整的线段
-        elif self._is_top(first) and self._is_top(last):
-            min_low_item = min(short_segments, key=lambda x: x[1]["Low"])
-            for item in short_segments:
-                if item is not min_low_item:
-                    segments.drop(item[1].name, inplace=True)
-        # 删除所有短线段。等同于将所有短线段和前后完整的线段合并成一条线段
-        else:
-            for item in short_segments:
-                if item[1] is not first and item[1] is not last:
-                    segments.drop(item[1].name, inplace=True)
-            if (self._is_top(first) and first["Low"] > last["High"]
-                    or self._is_bottom(first) and first["High"] < last["Low"]):
-                segments.drop(first.name, inplace=True)
-                segments.drop(last.name, inplace=True)
-            if short_segments[-1][0] - short_segments[0][0] < 3:
-                if segments.iloc[0].name == first.name:
-                    segments.drop(first.name, inplace=True)
-                else:
-                    return [short_segments[0], short_segments[-1]]
+    # 如果第四笔延续之前的趋势，则合并到前线段
+    def _five_strokes(self, segments, strokes):
+        current = strokes[0]
+        fourth = strokes[4]
 
-        return []
+        if (self._is_top(current["item"]) and fourth["item"]["High"] >= current["item"]["High"]
+                or self._is_bottom(current["item"]) and fourth["item"]["Low"] <= current["item"]["Low"]):
+            return [fourth]
+        return strokes
+
+    # 判断五笔以上，单数笔是否可以组成线段
+    def _six_strokes(self, segments, strokes):
+        current = strokes[0]
+        third = strokes[-3]
+        fifth = strokes[-1]
+
+        if (self._is_top(current["item"]) and fifth["item"]["Low"] <= third["item"]["Low"]
+                or self._is_bottom(current["item"]) and fifth["item"]["High"] >= third["item"]["High"]):
+            self._keep_item(segments, current["item"])
+            return [fifth]
+        return strokes
+
+    # 判断六笔以上，双数笔是否可以分割成两个线段
+    def _seven_strokes(self, segments, strokes):
+        current = strokes[0]
+        fourth = strokes[-3]
+        sixth = strokes[-1]
+
+        if (self._is_top(current["item"]) and sixth["item"]["High"] >= fourth["item"]["High"]
+                or self._is_bottom(current["item"]) and sixth["item"]["Low"] <= fourth["item"]["Low"]):
+            self._keep_item(segments, current["item"])
+            if self._is_top(current["item"]):
+                self._keep_item(segments, self._middle_lowest(strokes)["item"])
+            else:
+                self._keep_item(segments, self._middle_highest(strokes)["item"])
+            return [sixth]
+        return strokes
+
+    # 找到中间最低分型
+    @staticmethod
+    def _middle_lowest(strokes):
+        lowest = None
+        for index in range(3, len(strokes) - 3):
+            low = strokes[index]
+            if lowest is None or low["item"]["Low"] < lowest["item"]["Low"]:
+                lowest = low
+        return lowest
+
+    # 找斗中间最高分型
+    @staticmethod
+    def _middle_highest(strokes):
+        highest = None
+        for index in range(3, len(strokes) - 3):
+            high = strokes[index]
+            if highest is None or high["item"]["High"] > highest["item"]["High"]:
+                highest = high
+        return highest
 
 
 if __name__ == '__main__':
-    source = Source("AAPL")
+    source = Source("002594.SZ")
     source.load_from_csv()
 
     stick = Stick(source)

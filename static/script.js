@@ -1,5 +1,30 @@
+const chartDom = document.getElementById('candlestick-chart');
+let myChart = echarts.init(chartDom);
+
+let chanData;
+let layers;
+
+function showLoading() {
+    if (chartDom && myChart) {
+        myChart.showLoading('default', {
+            text: '加载中...',
+            color: '#4A90E2',
+            textColor: '#000',
+            maskColor: 'rgba(255, 255, 255, 0.8)',
+            zlevel: 0
+        });
+    }
+}
+
+function hideLoading() {
+    if (myChart) {
+        myChart.hideLoading();
+    }
+}
+
 async function fetchData(symbol, interval) {
     try {
+        showLoading();
         const response = await fetch(`/api/${symbol}/${interval}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -8,14 +33,10 @@ async function fetchData(symbol, interval) {
     } catch (error) {
         console.error("Failed to fetch data:", error);
         return null;
+    } finally {
+        hideLoading();
     }
 }
-
-const chartDom = document.getElementById('candlestick-chart');
-let myChart = echarts.init(chartDom);
-
-let chanData;
-let layers;
 
 const option = {
     tooltip: {
@@ -25,13 +46,14 @@ const option = {
         },
         formatter: function (params) {
             const data = params[0].data;
+            const date = params[0].axisValueLabel;
             return `
-                        <div style="font-weight: bold;">${data[1]}</div>
+                        <div style="font-weight: bold;">${date}</div>
                         <div style="margin-top: 5px;">
-                            开盘：$${data[2].toFixed(2)}<br/>
-                            收盘：$${data[3].toFixed(2)}<br/>
-                            最低：$${data[4].toFixed(2)}<br/>
-                            最高：$${data[5].toFixed(2)}
+                            开盘：$${data[1].toFixed(4)}<br/>
+                            最低：$${data[3].toFixed(4)}<br/>
+                            最高：$${data[4].toFixed(4)}<br/>
+                            收盘：$${data[2].toFixed(4)}
                         </div>
                     `;
         }
@@ -76,10 +98,6 @@ const option = {
             name: 'Stock Price',
             type: 'candlestick',
             data: [],
-            encode: {
-                x: [0],
-                y: [1, 2, 3, 4]
-            },
             barMinWidth: 1,
             barMaxWidth: 20,
             itemStyle: {
@@ -93,10 +111,6 @@ const option = {
             name: 'Stick',
             type: 'candlestick',
             data: [],
-            encode: {
-                x: [0],
-                y: [1, 2, 3, 4]
-            },
             barMinWidth: 1,
             barMaxWidth: 20,
             itemStyle: {
@@ -222,13 +236,14 @@ const option = {
 myChart.setOption(option);
 
 async function initChart(symbol, interval, newLayers) {
+    showLoading();
     chanData = await fetchData(symbol, interval);
-    layers = [true, false, false, false, false, false];
+    layers = [true, false, false, false, false, false, false, false, false, false];
 
     myChart = echarts.init(chartDom);
 
     if (chanData) {
-        option.series[0].data = chanData.source;
+        option.series[0].data = chanData.source.map(item => [item[1], item[2], item[3], item[4]]);
         option.xAxis.data = chanData.source.map(item => item[0]);
 
         myChart.setOption(option, {
@@ -236,10 +251,11 @@ async function initChart(symbol, interval, newLayers) {
             lazyUpdate: false,
             silent: false
         });
-        updateChart(newLayers);
+        await updateChart(newLayers);
     } else {
         console.log("No data to update the chart.");
     }
+    hideLoading();
 }
 
 async function updateChart(newLayers) {
@@ -247,7 +263,7 @@ async function updateChart(newLayers) {
         if (newLayers[1] !== layers[1]) {
             let data = []
             if (newLayers[1]) {
-                data = chanData.stick;
+                data = chanData.stick.map(item => [item[1], item[2], item[1], item[2]]);
             }
             myChart.setOption({
                 series: [

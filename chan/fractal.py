@@ -13,7 +13,7 @@ class Fractal(Layer):
     def generate_interval(self, interval, data):
         # 初始化分型数据集
         fractals = pd.DataFrame(columns=["High", "Low"])
-        if len(data) == 0:
+        if len(data) < 3:
             return fractals
 
         # 遍历线，寻找分型
@@ -50,7 +50,7 @@ class Fractal(Layer):
 
 
 if __name__ == '__main__':
-    source = Source("AAPL")
+    source = Source("002594.SZ")
     source.load_from_csv()
 
     stick = Stick(source)

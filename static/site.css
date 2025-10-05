@@ -56,11 +56,11 @@ h2 {
     margin-right: 20px;
 }
 
-.checkbox-row {
+#layers {
     margin-top: 10px;
     text-align: center;
 }
 
-.checkbox-row label {
+#layers label {
     margin: 0 8px;
 }

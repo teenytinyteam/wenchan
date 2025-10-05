@@ -1,6 +1,5 @@
 from enum import Enum
 
-import numpy as np
 import pandas as pd
 import uvicorn
 from fastapi import FastAPI, Request
@@ -9,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from chan.fractal import Fractal
-from chan.layer import Interval
+from chan.layer import Interval, Layer
 from chan.pivot import Pivot
 from chan.segment import Segment
 from chan.source import Source
@@ -41,7 +40,8 @@ async def _load_data(request):
 # 数据API路由，返回股票列表
 @app.get('/api/stocks')
 async def get_stocks():
-    return [{'symbol': 'AAPL', 'name': '苹果'}]
+    return [{'symbol': 'AAPL', 'name': '苹果'},
+            {'symbol': '002594.SZ', 'name': '比亚迪'}]
 
 
 class IntervalConfig(Enum):
@@ -67,23 +67,16 @@ async def get_data(symbol: str, interval: str):
     interval = Interval(interval)
     date_format = IntervalConfig[interval.name].value['format']
 
-    # 原始数据
+    # 股价层
     source = Source(symbol)
-    source.load_from_csv()
-    source_df = source.get_data(interval).dropna(how='all').fillna('').reset_index()
+    source_df = _load_layer_data(source, interval, date_format)
     if source_df is not None:
-        source_df['Date'] = pd.to_datetime(source_df['Date'], utc=True)
-        source_df['Date'] = source_df['Date'].dt.strftime(date_format)
         data['source'] = source_df[['Date', 'Open', 'Close', 'Low', 'High']].values.tolist()
 
-    # 残论K线
+    # K线层
     stick = Stick(source)
-    stick.load_from_csv()
-    stick_df = stick.get_data(interval).dropna(how='all').fillna('').reset_index()
+    stick_df = _load_layer_data(stick, interval, date_format)
     if stick_df is not None:
-        stick_df['Date'] = pd.to_datetime(stick_df['Date'], utc=True)
-        stick_df['Date'] = stick_df['Date'].dt.strftime(date_format)
-
         missing_dates = set(source_df['Date']) - set(stick_df['Date'])
         missing_data = pd.DataFrame({'Date': list(missing_dates)})
         for col in stick_df.columns:
@@ -91,54 +84,51 @@ async def get_data(symbol: str, interval: str):
                 missing_data[col] = ''
         stick_df = pd.concat([stick_df, missing_data], ignore_index=True)
         stick_df = stick_df.sort_values(by='Date').reset_index(drop=True)
+        data['stick'] = stick_df[['Date', 'Low', 'High']].values.tolist()
 
-        data['stick'] = stick_df[['Date', 'Low', 'High', 'Low', 'High']].values.tolist()
-
-    # 缠论分型
+    # 分型层
     fractal = Fractal(stick)
-    fractal.load_from_csv()
-    fractal_df = fractal.get_data(interval).dropna(how='all').fillna('').reset_index()
+    fractal_df = _load_layer_data(fractal, interval, date_format)
     if fractal_df is not None:
-        fractal_df['Date'] = pd.to_datetime(fractal_df['Date'], utc=True)
-        fractal_df['Date'] = fractal_df['Date'].dt.strftime(date_format)
         data['fractal'] = fractal_df[['Date', 'Low', 'High']].values.tolist()
 
-    # 缠论笔
+    # 笔层
     stroke = Stroke(fractal)
-    stroke.load_from_csv()
-    stroke_df = stroke.get_data(interval).dropna(how='all').fillna('').reset_index()
+    stroke_df = _load_layer_data(stroke, interval, date_format)
     if stroke_df is not None:
-        stroke_df['Date'] = pd.to_datetime(stroke_df['Date'], utc=True)
-        stroke_df['Date'] = stroke_df['Date'].dt.strftime(date_format)
         data['stroke'] = stroke_df[['Date', 'Low', 'High']].values.tolist()
 
-    # 缠论线段
+    # 线段层
     segment = Segment(stroke)
-    segment.load_from_csv()
-    segment_df = segment.get_data(interval).dropna(how='all').fillna('').reset_index()
+    segment_df = _load_layer_data(segment, interval, date_format)
     if segment_df is not None:
-        segment_df['Date'] = pd.to_datetime(segment_df['Date'], utc=True)
-        segment_df['Date'] = segment_df['Date'].dt.strftime(date_format)
         data['segment'] = segment_df[['Date', 'Low', 'High']].values.tolist()
 
-    # 缠论中枢
+    # 中枢层
     pivot = Pivot(segment)
-    pivot.load_from_csv()
-    pivot_df = pivot.get_data(interval).dropna(how='all').reset_index()
+    pivot_df = _load_layer_data(pivot, interval, date_format)
     if pivot_df is not None:
-        pivot_df['Date'] = pd.to_datetime(pivot_df['Date'], utc=True)
-        pivot_df['Date'] = pivot_df['Date'].dt.strftime(date_format)
-
-        pivot = pd.DataFrame(columns=['Start', 'End', 'High', 'Low'])
+        pivot_df['High'] = pd.to_numeric(pivot_df['High'], errors='coerce')
+        pivot_df['Low'] = pd.to_numeric(pivot_df['Low'], errors='coerce')
+        pivot = pd.DataFrame(columns=['Start', 'End', 'Low', 'High'])
         for index in range(0, len(pivot_df), 2):
             start = pivot_df.iloc[index]
             end = pivot_df.iloc[index + 1]
-            high = end['High'] if np.isnan(start['High']) else start['High']
-            low = end['Low'] if np.isnan(start['Low']) else start['Low']
+            high = start['High'] if pd.notna(start['High']) else end['High']
+            low = start['Low'] if pd.notna(start['Low']) else end['Low']
             pivot.loc[start.name] = [start['Date'], end['Date'], high, low]
-
         data['pivot'] = pivot.values.tolist()
 
+    return data
+
+
+# 加载一层数据
+def _load_layer_data(layer: Layer, interval, date_format):
+    layer.load_from_csv()
+    data = layer.get_data(interval).dropna(how='all').fillna('').reset_index()
+    if data is not None:
+        data['Date'] = pd.to_datetime(data['Date'], utc=True)
+        data['Date'] = data['Date'].dt.strftime(date_format)
     return data
 
 

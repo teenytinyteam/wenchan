@@ -11,48 +11,39 @@ class Stick(Layer):
     def generate_interval(self, interval, data):
         # 初始化线数据集
         sticks = pd.DataFrame(columns=["High", "Low"])
-        if len(data) < 1:
+        if len(data) < 2:
             return sticks
 
-        # 寻找第一条走势明确的K线作为起点
+        # 找到第一条可以确定方向的K线作为起点
         index = 0
-        current = self._get_item(data, index)
         while index < len(data) - 1:
-            after = self._get_item(data, index + 1)
-            if self._is_go_up(current, after) or self._is_go_down(current, after):
+            before = self._get_item(data, index)
+            current = self._get_item(data, index + 1).copy()
+
+            if self._is_go_up(before, current) or self._is_go_down(before, current):
+                self._keep_item(sticks, before)
                 break
-            current = after
             index += 1
-        self._keep_item(sticks, current)
 
         # 遍历剩余K线
-        index += 1
-        while index < len(data):
-            before = current
-            current = self._get_item(data, index).copy()
+        for i in range(index + 2, len(data)):
+            after = self._get_item(data, i).copy()
 
             # 根据线的走势决定合并最低价，还是最高价
             merge_column = "Low" if self._is_go_up(before, current) else "High"
 
-            # 检查后续线，直到无法合并
-            while index < len(data) - 1:
-                after = self._get_item(data, index + 1).copy()
-
-                # 如果当前线包含下一条线，则将其合并
-                if self._can_merge_inside(current, after):
-                    current[merge_column] = after[merge_column]
-                    index += 1
-                # 如果当前线被下一条线包含，则合并到下一条线
-                elif self._can_merge_outside(current, after):
-                    after[merge_column] = current[merge_column]
-                    current = after
-                    index += 1
-                # 如果没有包含关系，则保存当前线，继续处理下一条线
-                else:
-                    self._keep_item(sticks, current)
-                    break
-
-            index += 1
+            # 如果当前线包含下一条线，则将其合并
+            if self._can_merge_inside(current, after):
+                current[merge_column] = after[merge_column]
+            # 如果当前线被下一条线包含，则合并到下一条线
+            elif self._can_merge_outside(current, after):
+                after[merge_column] = current[merge_column]
+                current = after
+            # 如果没有包含关系，则保存当前线，继续处理下一条线
+            else:
+                self._keep_item(sticks, current)
+                before = current
+                current = after
 
         self._keep_item(sticks, current)
         return sticks
@@ -79,7 +70,7 @@ class Stick(Layer):
 
 
 if __name__ == '__main__':
-    source = Source("AAPL")
+    source = Source("002594.SZ")
     source.load_from_csv()
 
     stick = Stick(source)
