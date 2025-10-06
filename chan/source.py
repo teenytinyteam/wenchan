@@ -1,5 +1,6 @@
 from enum import Enum
 
+import pandas as pd
 import yfinance as yf
 
 from chan.layer import Layer, Interval
@@ -30,14 +31,44 @@ class Source(Layer):
     def generate_interval(self, interval, data):
         try:
             ticker = yf.Ticker(self.symbol)
-            return ticker.history(
+            df = ticker.history(
                 period=Period[interval.name].value,
                 interval=interval.value,
                 actions=False
             )
+
+            if df is not None and not df.empty:
+                if self.symbol.endswith(".SZ") or self.symbol.endswith(".SS"):
+                    if interval in [Interval.MIN_1, Interval.MIN_5, Interval.MIN_30, Interval.HOUR_1]:
+                        df = self.filter_a_share_trading_time(df)
+                df = self.calculate_macd(df)
+            return df
+
         except Exception as e:
             print(f"Error fetching {self.symbol} data for {interval.value}: {e}")
             return None
+
+    @staticmethod
+    def filter_a_share_trading_time(df):
+        if df.index.tz is None:
+            df.index = df.index.tz_localize("UTC")
+        df = df.tz_convert("Asia/Shanghai")
+
+        time_mask = (
+                ((df.index.time >= pd.Timestamp("09:30").time()) & (df.index.time <= pd.Timestamp("11:30").time())) |
+                ((df.index.time >= pd.Timestamp("13:00").time()) & (df.index.time <= pd.Timestamp("15:00").time()))
+        )
+        return df[time_mask].copy()
+
+    @staticmethod
+    def calculate_macd(df, fast=12, slow=26, signal=9):
+        ema_fast = df['Close'].ewm(span=fast, adjust=False).mean()
+        ema_slow = df['Close'].ewm(span=slow, adjust=False).mean()
+
+        df['MACD'] = ema_fast - ema_slow
+        df['Signal'] = df['MACD'].ewm(span=signal, adjust=False).mean()
+        df['Histogram'] = df['MACD'] - df['Signal']
+        return df
 
 
 if __name__ == '__main__':

@@ -3,10 +3,10 @@ import pandas as pd
 from chan.fractal import Fractal
 from chan.layer import Layer, Interval
 from chan.pivot import Pivot
-from chan.segment import Segment_1
+from chan.segment import Segment
 from chan.source import Source
 from chan.stick import Stick
-from chan.stroke import Stroke_1
+from chan.stroke import Stroke
 
 
 # 缠论走势类
@@ -44,10 +44,10 @@ if __name__ == '__main__':
     fractal = Fractal(stick)
     fractal.load_from_csv()
 
-    stroke = Stroke_1(fractal)
+    stroke = Stroke(fractal)
     stroke.load_from_csv()
 
-    segment = Segment_1(stroke)
+    segment = Segment(stroke)
     segment.load_from_csv()
 
     pivot = Pivot(segment)

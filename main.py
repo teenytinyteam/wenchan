@@ -40,8 +40,7 @@ async def _load_data(request):
 # 数据API路由，返回股票列表
 @app.get('/api/stocks')
 async def get_stocks():
-    return [{'symbol': 'AAPL', 'name': '苹果'},
-            {'symbol': '002594.SZ', 'name': '比亚迪'}]
+    return [{'symbol': '002594.SZ', 'name': '比亚迪'}]
 
 
 class IntervalConfig(Enum):
@@ -71,7 +70,8 @@ async def get_data(symbol: str, interval: str):
     source = Source(symbol)
     source_df = _load_layer_data(source, interval, date_format)
     if source_df is not None:
-        data['source'] = source_df[['Date', 'Open', 'Close', 'Low', 'High']].values.tolist()
+        data['source'] = source_df[['Date', 'Open', 'Close', 'Low', 'High',
+                                    'MACD', 'Signal', 'Histogram']].values.tolist()
 
     # K线层
     stick = Stick(source)

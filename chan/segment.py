@@ -26,8 +26,8 @@ class Segment(Layer):
 
         # 遍历所有笔
         for index in range(len(data)):
-            item = self._get_item(data, index)
-            strokes.append({"index": index, "item": item})
+            current = self._get_item(data, index)
+            strokes.append({"index": index, "item": current})
 
             count = len(strokes)
             if count == 3:

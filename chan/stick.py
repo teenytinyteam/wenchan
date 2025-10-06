@@ -17,33 +17,33 @@ class Stick(Layer):
         # 找到第一条可以确定方向的K线作为起点
         index = 0
         while index < len(data) - 1:
-            before = self._get_item(data, index)
+            previous = self._get_item(data, index)
             current = self._get_item(data, index + 1).copy()
 
-            if self._is_go_up(before, current) or self._is_go_down(before, current):
-                self._keep_item(sticks, before)
+            if self._is_go_up(previous, current) or self._is_go_down(previous, current):
+                self._keep_item(sticks, previous)
                 break
             index += 1
 
         # 遍历剩余K线
         for i in range(index + 2, len(data)):
-            after = self._get_item(data, i).copy()
+            first = self._get_item(data, i).copy()
 
             # 根据线的走势决定合并最低价，还是最高价
-            merge_column = "Low" if self._is_go_up(before, current) else "High"
+            merge_column = "Low" if self._is_go_up(previous, current) else "High"
 
             # 如果当前线包含下一条线，则将其合并
-            if self._can_merge_inside(current, after):
-                current[merge_column] = after[merge_column]
+            if self._can_merge_inside(current, first):
+                current[merge_column] = first[merge_column]
             # 如果当前线被下一条线包含，则合并到下一条线
-            elif self._can_merge_outside(current, after):
-                after[merge_column] = current[merge_column]
-                current = after
+            elif self._can_merge_outside(current, first):
+                first[merge_column] = current[merge_column]
+                current = first
             # 如果没有包含关系，则保存当前线，继续处理下一条线
             else:
                 self._keep_item(sticks, current)
-                before = current
-                current = after
+                previous = current
+                current = first
 
         self._keep_item(sticks, current)
         return sticks

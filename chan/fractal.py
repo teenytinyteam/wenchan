@@ -18,15 +18,15 @@ class Fractal(Layer):
 
         # 遍历线，寻找分型
         for index in range(1, len(data) - 1):
-            before = self._get_item(data, index - 1)
+            previous = self._get_item(data, index - 1)
             current = self._get_item(data, index).copy()
-            after = self._get_item(data, index + 1)
+            first = self._get_item(data, index + 1)
 
             # 如果是顶分型，则保留最高价，删除最低价
-            if self._is_top_fractal(current, before, after):
+            if self._is_top_fractal(previous, current, first):
                 current['Low'] = np.nan
             # 如果是底分型，则保留最低价，删除最高价
-            elif self._is_bottom_fractal(current, before, after):
+            elif self._is_bottom_fractal(previous, current, first):
                 current['High'] = np.nan
             # 如果不是分型，则删除该价格，只保留位置（用于下一步笔的计算）
             else:
@@ -40,13 +40,13 @@ class Fractal(Layer):
 
     # 判断是否为顶分型
     @staticmethod
-    def _is_top_fractal(current, before, after):
-        return current["High"] > before["High"] and current["High"] > after["High"]
+    def _is_top_fractal(previous, current, first):
+        return current["High"] > previous["High"] and current["High"] > first["High"]
 
     # 判断是否为底分型
     @staticmethod
-    def _is_bottom_fractal(current, before, after):
-        return current["Low"] < before["Low"] and current["Low"] < after["Low"]
+    def _is_bottom_fractal(previous, current, first):
+        return current["Low"] < previous["Low"] and current["Low"] < first["Low"]
 
 
 if __name__ == '__main__':

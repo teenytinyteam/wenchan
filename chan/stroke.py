@@ -25,9 +25,9 @@ class Stroke(Layer):
 
         # 遍历所有分型
         for index in range(len(data)):
-            item = self._get_item(data, index)
-            if self._is_fractal(item):
-                fractals.append({"index": index, "item": item})
+            current = self._get_item(data, index)
+            if self._is_fractal(current):
+                fractals.append({"index": index, "item": current})
 
                 count = len(fractals)
                 if count == 2:

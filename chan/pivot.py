@@ -19,23 +19,20 @@ class Pivot(Layer):
             return pivots
 
         # 遍历线段，寻找中枢
+        previous_zone = None
         index = 4
         while index < len(data):
-            before = self._get_item(data, index - 4)
-            first = self._get_item(data, index - 3).copy()
+            previous = self._get_item(data, index - 4)
+            current = self._get_item(data, index - 3).copy()
 
             # 计算中枢区间
-            segments = data.iloc[index - 3: index + 1]
-            zone = {"high": segments["High"].min(), "low": segments["Low"].max()}
+            zone = self._get_zone(data, index - 3, 4)
 
             # 判断中枢是否成立
-            if (zone["high"] > zone["low"]
-                    and (self._is_top(before) and before["High"] > zone["low"]
-                         or self._is_bottom(before) and before["Low"] < zone["high"])):
+            if self._is_zone(zone, previous_zone, previous):
                 # 中枢扩展
                 while index < len(data) - 2:
-                    next_segments = data.iloc[index + 1: index + 3]
-                    next_zone = {"high": next_segments["High"].min(), "low": next_segments["Low"].max()}
+                    next_zone = self._get_zone(data, index + 1, 2)
                     # 离开中枢区间，则结束
                     if self._out_of_range(zone, next_zone):
                         break
@@ -43,15 +40,16 @@ class Pivot(Layer):
 
                 # 保存中枢
                 last = self._get_item(data, index).copy()
-                if self._is_top(first):
-                    first["High"] = zone["high"]
+                if self._is_top(current):
+                    current["High"] = zone["high"]
                     last["Low"] = zone["low"]
                 else:
-                    first["Low"] = zone["low"]
+                    current["Low"] = zone["low"]
                     last["High"] = zone["high"]
 
-                self._keep_item(pivots, first)
+                self._keep_item(pivots, current)
                 self._keep_item(pivots, last)
+                previous_zone = zone
                 index += 4
             else:
                 # 中枢不成立
@@ -60,26 +58,26 @@ class Pivot(Layer):
         # 合并中枢
         index = 0
         while index < len(pivots) - 3:
-            first = self._get_item(pivots, index)
-            second = self._get_item(pivots, index + 1)
-            first_pivot = self._get_range(first, second)
+            current = self._get_item(pivots, index)
+            first = self._get_item(pivots, index + 1)
+            first_pivot = self._get_range(current, first)
 
-            third = self._get_item(pivots, index + 2)
-            fourth = self._get_item(pivots, index + 3)
-            second_pivot = self._get_range(third, fourth)
+            second = self._get_item(pivots, index + 2)
+            third = self._get_item(pivots, index + 3)
+            second_pivot = self._get_range(second, third)
 
             # 中枢同方向，且有重叠，则合并中枢
             if not self._out_of_range(first_pivot, second_pivot):
-                if self._is_top(first) and self._is_top(third):
-                    first["High"] = min(first["High"], third["High"])
-                    fourth["Low"] = max(second["Low"], fourth["Low"])
+                if self._is_top(current) and self._is_top(second):
+                    current["High"] = min(current["High"], second["High"])
+                    third["Low"] = max(first["Low"], third["Low"])
+                    self._drop_item(pivots, first)
                     self._drop_item(pivots, second)
-                    self._drop_item(pivots, third)
-                elif self._is_bottom(first) and self._is_bottom(third):
-                    first["Low"] = max(first["Low"], third["Low"])
-                    fourth["High"] = min(second["High"], fourth["High"])
+                elif self._is_bottom(current) and self._is_bottom(second):
+                    current["Low"] = max(current["Low"], second["Low"])
+                    third["High"] = min(first["High"], third["High"])
+                    self._drop_item(pivots, first)
                     self._drop_item(pivots, second)
-                    self._drop_item(pivots, third)
                 else:
                     index += 2
             else:
@@ -87,15 +85,29 @@ class Pivot(Layer):
 
         return pivots
 
+    def _is_zone(self, zone, previous_zone, previous):
+        return (zone["high"] > zone["low"]
+                and (self._is_top(previous)
+                     and (previous_zone is None or zone["low"] < previous_zone["low"])
+                     and previous["High"] > zone["low"]
+                     or self._is_bottom(previous)
+                     and (previous_zone is None or zone["high"] > previous_zone["high"])
+                     and previous["Low"] < zone["high"]))
+
+    @staticmethod
+    def _get_zone(data, index, count):
+        segments = data.iloc[index: index + count]
+        return {"high": segments["High"].min(), "low": segments["Low"].max()}
+
     # 离开中枢
     @staticmethod
-    def _out_of_range(pivot_range, next_range):
-        return next_range["high"] < pivot_range["low"] or next_range["low"] > pivot_range["high"]
+    def _out_of_range(zone, next_zone):
+        return next_zone["high"] < zone["low"] or next_zone["low"] > zone["high"]
 
     # 计算中枢区间
-    def _get_range(self, first, second):
-        high = first["High"] if self._is_top(first) else second["High"]
-        low = first["Low"] if self._is_bottom(first) else second["Low"]
+    def _get_range(self, current, last):
+        high = current["High"] if self._is_top(current) else last["High"]
+        low = current["Low"] if self._is_bottom(current) else last["Low"]
         return {"high": high, "low": low}
 
 

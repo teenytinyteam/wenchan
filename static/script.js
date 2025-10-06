@@ -45,8 +45,13 @@ const option = {
             type: 'cross'
         },
         formatter: function (params) {
-            const data = params[0].data;
-            const date = params[0].axisValueLabel;
+            const item = params.find(item => item.seriesIndex === 0);
+            if (!item) {
+                return '';
+            }
+
+            const data = item.data;
+            const date = item.axisValueLabel;
             return `
                         <div style="font-weight: bold;">${date}</div>
                         <div style="margin-top: 5px;">
@@ -58,37 +63,81 @@ const option = {
                     `;
         }
     },
-    xAxis: {
-        type: 'category',
-        data: [],
-        scale: true,
-        boundaryGap: false,
-        axisLine: {onZero: false},
-        splitLine: {show: false},
-        min: 'dataMin',
-        max: 'dataMax'
+    axisPointer: {
+        link: [{xAxisIndex: 'all'}]
     },
-    yAxis: {
-        scale: true,
-        splitArea: {
-            show: true
+    grid: [
+        {
+            left: '4%',
+            right: '2%',
+            height: '55%'
         },
-        axisLabel: {
-            formatter: '${value}'
+        {
+            left: '4%',
+            right: '2%',
+            top: '70%',
+            height: '18%'
         }
-    },
+    ],
+    xAxis: [
+        {
+            type: 'category',
+            data: [],
+            scale: true,
+            boundaryGap: false,
+            axisLine: {onZero: false},
+            splitLine: {show: false},
+            min: 'dataMin',
+            max: 'dataMax'
+        },
+        {
+            type: 'category',
+            gridIndex: 1,
+            data: [],
+            scale: true,
+            boundaryGap: false,
+            axisLine: {onZero: false},
+            axisTick: {show: false},
+            splitLine: {show: false},
+            axisLabel: {show: false},
+            min: 'dataMin',
+            max: 'dataMax'
+        }
+    ],
+    yAxis: [
+        {
+            scale: true,
+            splitArea: {
+                show: true
+            },
+            axisLabel: {
+                formatter: '${value}'
+            }
+        },
+        {
+            scale: true,
+            gridIndex: 1,
+            splitNumber: 2,
+            axisLabel: {show: false},
+            axisLine: {show: false},
+            axisTick: {show: false},
+            splitLine: {show: false}
+        }
+    ],
     dataZoom: [
         {
             type: 'inside',
-            start: 50,
+            xAxisIndex: [0, 1],
+            start: 0,
             end: 100,
             minValueSpan: 5
         },
         {
             show: true,
             type: 'slider',
+            xAxisIndex: [0, 1],
             top: '90%',
-            start: 50,
+            start: 0,
             end: 100,
             minValueSpan: 5
         }
@@ -98,26 +147,87 @@ const option = {
             name: 'Stock Price',
             type: 'candlestick',
             data: [],
-            barMinWidth: 1,
-            barMaxWidth: 20,
             itemStyle: {
-                color: '#06B83F',
-                color0: '#E53E3E',
-                borderColor: '#06B83F',
-                borderColor0: '#E53E3E'
+                color: '#E53E3E',
+                color0: '#06B83F',
+                borderColor: '#E53E3E',
+                borderColor0: '#06B83F'
+            }
+        },
+        {
+            name: 'MACD',
+            type: 'line',
+            xAxisIndex: 1,
+            yAxisIndex: 1,
+            data: [],
+            showSymbol: false,
+            smooth: true,
+            lineStyle: {
+                color: '#2196F3',
+                width: 1
+            },
+            itemStyle: {
+                color: '#2196F3',
+                borderColor: '#2196F3',
+                borderWidth: 1
+            },
+            markLine: {
+                silent: true,
+                symbol: 'none',
+                data: [{
+                    yAxis: 0,
+                    lineStyle: {
+                        color: '#666',
+                        type: 'solid',
+                        width: 1
+                    }
+                }],
+                label: {
+                    show: true,
+                    position: 'start',
+                    distance: 8
+                }
+            }
+        },
+        {
+            name: 'Signal',
+            type: 'line',
+            xAxisIndex: 1,
+            yAxisIndex: 1,
+            data: [],
+            showSymbol: false,
+            smooth: true,
+            lineStyle: {
+                color: '#FF9800',
+                width: 1
+            },
+            itemStyle: {
+                color: '#FF9800',
+                borderColor: '#FF9800',
+                borderWidth: 1
+            }
+        },
+        {
+            name: 'Histogram',
+            type: 'bar',
+            xAxisIndex: 1,
+            yAxisIndex: 1,
+            data: [],
+            itemStyle: {
+                color: function (params) {
+                    return params.value >= 0 ? '#E53E3E' : '#06B83F';
+                }
             }
         },
         {
             name: 'Stick',
             type: 'candlestick',
             data: [],
-            barMinWidth: 1,
-            barMaxWidth: 20,
             itemStyle: {
-                color: '#E0A800',
-                color0: '#E0A800',
-                borderColor: '#FFC107',
-                borderColor0: '#FFC107'
+                color: '#FF9800',
+                color0: '#FF9800',
+                borderColor: '#FF9800',
+                borderColor0: '#FF9800'
             }
         },
         {
@@ -133,8 +243,8 @@ const option = {
             symbolRotate: 0,
             symbolOffset: [0, 8],
             itemStyle: {
-                color: '#E53E3E',
-                borderColor: '#E53E3E',
+                color: '#06B83F',
+                borderColor: '#06B83F',
                 borderWidth: 1
             }
         },
@@ -151,8 +261,8 @@ const option = {
             symbolRotate: 180,
             symbolOffset: [0, -8],
             itemStyle: {
-                color: '#06B83F',
-                borderColor: '#06B83F',
+                color: '#E53E3E',
+                borderColor: '#E53E3E',
                 borderWidth: 1
             }
         },
@@ -165,15 +275,14 @@ const option = {
                 y: [1]
             },
             connectNulls: true,
-            symbol: 'circle',
-            symbolSize: 4,
+            showSymbol: false,
             lineStyle: {
-                color: '#4A90E2',
+                color: '#2196F3',
                 width: 1
             },
             itemStyle: {
-                color: '#4A90E2',
-                borderColor: '#2E5C8A',
+                color: '#2196F3',
+                borderColor: '#2196F3',
                 borderWidth: 1
             }
         },
@@ -186,15 +295,14 @@ const option = {
                 y: [1]
             },
             connectNulls: true,
-            symbol: 'circle',
-            symbolSize: 4,
+            showSymbol: false,
             lineStyle: {
-                color: '#FF6B35',
+                color: '#FF9800',
                 width: 1
             },
             itemStyle: {
-                color: '#FF6B35',
-                borderColor: '#E55A2B',
+                color: '#FF9800',
+                borderColor: '#FF9800',
                 borderWidth: 1
             }
         },
@@ -225,8 +333,7 @@ const option = {
                     },
                     style: {
                         fill: 'rgba(138, 138, 135, 0.2)',
-                        stroke: '#8A8A87',
-                        lineWidth: 1
+                        lineWidth: 0
                     }
                 };
             }
@@ -244,7 +351,11 @@ async function initChart(symbol, interval, newLayers) {
 
     if (chanData) {
         option.series[0].data = chanData.source.map(item => [item[1], item[2], item[3], item[4]]);
-        option.xAxis.data = chanData.source.map(item => item[0]);
+        option.series[1].data = chanData.source.map(item => item[5]);
+        option.series[2].data = chanData.source.map(item => item[6]);
+        option.series[3].data = chanData.source.map(item => item[7]);
+        option.xAxis[0].data = chanData.source.map(item => item[0]);
+        option.xAxis[1].data = chanData.source.map(item => item[0]);
 
         myChart.setOption(option, {
             notMerge: true,
@@ -348,7 +459,7 @@ window.addEventListener('resize', function () {
 myChart.on('click', function (params) {
     if (params.componentType === 'series') {
         const dataIndex = params.dataIndex;
-        const dates = option.xAxis.data;
+        const dates = option.xAxis[0].data;
         const data = params.data;
         console.log(`Clicked on ${dates[dataIndex]}: 开盘=${data[1]}, 收盘=${data[2]}, 最低=${data[3]}, 最高=${data[4]}`);
     }
