@@ -190,7 +190,7 @@ const option = {
             }
         },
         {
-            name: 'Signal',
+            name: 'MACD Signal',
             type: 'line',
             xAxisIndex: 1,
             yAxisIndex: 1,
@@ -208,7 +208,7 @@ const option = {
             }
         },
         {
-            name: 'Histogram',
+            name: 'MACD Histogram',
             type: 'bar',
             xAxisIndex: 1,
             yAxisIndex: 1,
@@ -287,27 +287,7 @@ const option = {
             }
         },
         {
-            name: 'Segment',
-            type: 'line',
-            data: [],
-            encode: {
-                x: [0],
-                y: [1]
-            },
-            connectNulls: true,
-            showSymbol: false,
-            lineStyle: {
-                color: '#FF9800',
-                width: 1
-            },
-            itemStyle: {
-                color: '#FF9800',
-                borderColor: '#FF9800',
-                borderWidth: 1
-            }
-        },
-        {
-            name: 'Pivot',
+            name: 'Stroke Pivot',
             type: 'custom',
             data: [],
             encode: {
@@ -332,7 +312,59 @@ const option = {
                         height: startCoord[1] - endCoord[1]
                     },
                     style: {
-                        fill: 'rgba(138, 138, 135, 0.2)',
+                        fill: 'rgba(38, 138, 138, 0.2)',
+                        lineWidth: 0
+                    }
+                };
+            }
+        },
+        {
+            name: 'Segment',
+            type: 'line',
+            data: [],
+            encode: {
+                x: [0],
+                y: [1]
+            },
+            connectNulls: true,
+            showSymbol: false,
+            lineStyle: {
+                color: '#FF9800',
+                width: 1
+            },
+            itemStyle: {
+                color: '#FF9800',
+                borderColor: '#FF9800',
+                borderWidth: 1
+            }
+        },
+        {
+            name: 'Segment Pivot',
+            type: 'custom',
+            data: [],
+            encode: {
+                x: [0, 1],
+                y: [2, 3]
+            },
+            renderItem: function (params, api) {
+                const startDate = api.ordinalRawValue(0);
+                const endDate = api.ordinalRawValue(1);
+                const high = api.value(2);
+                const low = api.value(3);
+
+                const startCoord = api.coord([startDate, high]);
+                const endCoord = api.coord([endDate, low]);
+
+                return {
+                    type: 'rect',
+                    shape: {
+                        x: startCoord[0],
+                        y: endCoord[1],
+                        width: endCoord[0] - startCoord[0],
+                        height: startCoord[1] - endCoord[1]
+                    },
+                    style: {
+                        fill: 'rgba(138, 138, 38, 0.2)',
                         lineWidth: 0
                     }
                 };
@@ -421,6 +453,20 @@ async function updateChart(newLayers) {
         if (newLayers[4] !== layers[4]) {
             let data = []
             if (newLayers[4]) {
+                data = chanData.stroke_pivot;
+            }
+            myChart.setOption({
+                series: [
+                    {
+                        name: 'Stroke Pivot',
+                        data: data
+                    }
+                ]
+            });
+        }
+        if (newLayers[6] !== layers[6]) {
+            let data = []
+            if (newLayers[6]) {
                 data = chanData.segment.map(item => [item[0], item[1] === '' ? item[2] : item[1]]);
             }
             myChart.setOption({
@@ -432,15 +478,15 @@ async function updateChart(newLayers) {
                 ]
             });
         }
-        if (newLayers[5] !== layers[5]) {
+        if (newLayers[7] !== layers[7]) {
             let data = []
-            if (newLayers[5]) {
-                data = chanData.pivot;
+            if (newLayers[7]) {
+                data = chanData.segment_pivot;
             }
             myChart.setOption({
                 series: [
                     {
-                        name: 'Pivot',
+                        name: 'Segment Pivot',
                         data: data
                     }
                 ]

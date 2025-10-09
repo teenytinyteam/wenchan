@@ -67,15 +67,15 @@ class Pivot(Layer):
             second_pivot = self._get_range(second, third)
 
             # 中枢同方向，且有重叠，则合并中枢
-            if not self._out_of_range(first_pivot, second_pivot):
+            if self._cross_range(first_pivot, second_pivot):
                 if self._is_top(current) and self._is_top(second):
-                    current["High"] = min(current["High"], second["High"])
-                    third["Low"] = max(first["Low"], third["Low"])
+                    current["High"] = max(current["High"], second["High"])
+                    third["Low"] = min(first["Low"], third["Low"])
                     self._drop_item(pivots, first)
                     self._drop_item(pivots, second)
                 elif self._is_bottom(current) and self._is_bottom(second):
-                    current["Low"] = max(current["Low"], second["Low"])
-                    third["High"] = min(first["High"], third["High"])
+                    current["Low"] = min(current["Low"], second["Low"])
+                    third["High"] = max(first["High"], third["High"])
                     self._drop_item(pivots, first)
                     self._drop_item(pivots, second)
                 else:
@@ -102,7 +102,13 @@ class Pivot(Layer):
     # 离开中枢
     @staticmethod
     def _out_of_range(zone, next_zone):
-        return next_zone["high"] < zone["low"] or next_zone["low"] > zone["high"]
+        return (next_zone["high"] < zone["low"] or next_zone["high"] > zone["high"]
+                and next_zone["low"] < zone["low"] or next_zone["low"] > zone["high"])
+
+    # 中枢重叠
+    @staticmethod
+    def _cross_range(zone, next_zone):
+        return next_zone["high"] > zone["low"] and next_zone["low"] < zone["high"]
 
     # 计算中枢区间
     def _get_range(self, current, last):
@@ -111,8 +117,16 @@ class Pivot(Layer):
         return {"high": high, "low": low}
 
 
+class StrokePivot(Pivot):
+    pass
+
+
+class SegmentPivot(Pivot):
+    pass
+
+
 if __name__ == '__main__':
-    source = Source("002594.SZ")
+    source = Source("000001.SS")
     source.load_from_csv()
 
     stick = Stick(source)
@@ -124,8 +138,11 @@ if __name__ == '__main__':
     stroke = Stroke(fractal)
     stroke.load_from_csv()
 
+    strokePivot = StrokePivot(stroke)
+    strokePivot.generate()
+
     segment = Segment(stroke)
     segment.load_from_csv()
 
-    pivot = Pivot(segment)
-    pivot.generate()
+    segmentPivot = SegmentPivot(segment)
+    segmentPivot.generate()

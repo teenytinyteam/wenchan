@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>wenchan.org - 问缠</title>
+    <title>wenchan.org</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
-    <link rel="stylesheet" href="../static/site.css">
+    <link rel="stylesheet" href="../static/style.css">
 </head>
 <body>
 <div class="container">
@@ -25,12 +25,12 @@
         <label><input type="checkbox" class="chart-option" value="2">K线</label>
         <label><input type="checkbox" class="chart-option" value="3">分型</label>
         <label><input type="checkbox" class="chart-option" value="4">笔</label>
-        <label><input type="checkbox" class="chart-option" value="5">线段</label>
-        <label><input type="checkbox" class="chart-option" value="6">中枢</label>
-        <label><input type="checkbox" class="chart-option" value="7">走势</label>
-        <label><input type="checkbox" class="chart-option" value="8">背驰</label>
-        <label><input type="checkbox" class="chart-option" value="9">信号</label>
-        <label><input type="checkbox" class="chart-option" value="10">区间套</label>
+        <label><input type="checkbox" class="chart-option" value="5">笔中枢</label>
+        <label><input type="checkbox" class="chart-option" value="6">笔背驰</label>
+        <label><input type="checkbox" class="chart-option" value="7">段</label>
+        <label><input type="checkbox" class="chart-option" value="8">段中枢</label>
+        <label><input type="checkbox" class="chart-option" value="9">段背驰</label>
+        <label><input type="checkbox" class="chart-option" value="10">信号</label>
     </div>
 </div>
 <script src="../static/script.js"></script>
@@ -71,7 +71,7 @@
             list.forEach(s => {
                 let opt = document.createElement("option");
                 opt.value = s.symbol;
-                opt.text = `${s.symbol} ${s.name || ""}`;
+                opt.text = `${s.symbol} - ${s.name || ""}`;
                 stockSelect.appendChild(opt);
             });
         } catch (err) {

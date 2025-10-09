@@ -70,7 +70,7 @@ class Stick(Layer):
 
 
 if __name__ == '__main__':
-    source = Source("002594.SZ")
+    source = Source("SQQQ")
     source.load_from_csv()
 
     stick = Stick(source)

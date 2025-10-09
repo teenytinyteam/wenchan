@@ -72,5 +72,5 @@ class Source(Layer):
 
 
 if __name__ == '__main__':
-    source = Source("002594.SZ")
+    source = Source("SQQQ")
     source.generate()
