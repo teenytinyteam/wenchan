@@ -15,6 +15,7 @@ class Stick(Layer):
             return sticks
 
         # 找到第一条可以确定方向的K线作为起点
+        previous = current = None
         index = 0
         while index < len(data) - 1:
             previous = self._get_item(data, index)

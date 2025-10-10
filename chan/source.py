@@ -40,7 +40,7 @@ class Source(Layer):
             if df is not None and not df.empty:
                 if self.symbol.endswith(".SZ") or self.symbol.endswith(".SS"):
                     if interval in [Interval.MIN_1, Interval.MIN_5, Interval.MIN_30, Interval.HOUR_1]:
-                        df = self.filter_a_share_trading_time(df)
+                        df = self.filter_cn_a_share_trading_time(df)
                 df = self.calculate_macd(df)
             return df
 
@@ -49,15 +49,16 @@ class Source(Layer):
             return None
 
     @staticmethod
-    def filter_a_share_trading_time(df):
+    def filter_cn_a_share_trading_time(df):
         if df.index.tz is None:
             df.index = df.index.tz_localize("UTC")
         df = df.tz_convert("Asia/Shanghai")
 
         time_mask = (
-                ((df.index.time >= pd.Timestamp("09:30").time()) & (df.index.time <= pd.Timestamp("11:30").time())) |
-                ((df.index.time >= pd.Timestamp("13:00").time()) & (df.index.time <= pd.Timestamp("15:00").time()))
-        )
+                ((df.index.time >= pd.Timestamp("09:30").time())
+                 & (df.index.time <= pd.Timestamp("11:30").time()))
+                | ((df.index.time >= pd.Timestamp("13:00").time())
+                   & (df.index.time <= pd.Timestamp("15:00").time())))
         return df[time_mask].copy()
 
     @staticmethod

@@ -48,8 +48,10 @@ class Segment(Layer):
         current = strokes[0]
         second = strokes[2]
 
-        if (self._is_top(current["item"]) and second["item"]["High"] >= current["item"]["High"]
-                or self._is_bottom(current["item"]) and second["item"]["Low"] <= current["item"]["Low"]):
+        if (self._is_top(current["item"])
+                and second["item"]["High"] >= current["item"]["High"]
+                or self._is_bottom(current["item"])
+                and second["item"]["Low"] <= current["item"]["Low"]):
             return [second]
         return strokes
 
@@ -59,8 +61,10 @@ class Segment(Layer):
         first = strokes[1]
         third = strokes[3]
 
-        if (self._is_top(current["item"]) and third["item"]["Low"] <= first["item"]["Low"]
-                or self._is_bottom(current["item"]) and third["item"]["High"] >= first["item"]["High"]):
+        if (self._is_top(current["item"])
+                and third["item"]["Low"] <= first["item"]["Low"]
+                or self._is_bottom(current["item"])
+                and third["item"]["High"] >= first["item"]["High"]):
             self._keep_item(segments, current["item"])
             return [third]
         return strokes
@@ -70,8 +74,10 @@ class Segment(Layer):
         current = strokes[0]
         fourth = strokes[4]
 
-        if (self._is_top(current["item"]) and fourth["item"]["High"] >= current["item"]["High"]
-                or self._is_bottom(current["item"]) and fourth["item"]["Low"] <= current["item"]["Low"]):
+        if (self._is_top(current["item"])
+                and fourth["item"]["High"] >= current["item"]["High"]
+                or self._is_bottom(current["item"])
+                and fourth["item"]["Low"] <= current["item"]["Low"]):
             return [fourth]
         return strokes
 
@@ -81,8 +87,10 @@ class Segment(Layer):
         third = strokes[-3]
         fifth = strokes[-1]
 
-        if (self._is_top(current["item"]) and fifth["item"]["Low"] <= third["item"]["Low"]
-                or self._is_bottom(current["item"]) and fifth["item"]["High"] >= third["item"]["High"]):
+        if (self._is_top(current["item"])
+                and fifth["item"]["Low"] <= third["item"]["Low"]
+                or self._is_bottom(current["item"])
+                and fifth["item"]["High"] >= third["item"]["High"]):
             self._keep_item(segments, current["item"])
             return [fifth]
         return strokes
@@ -93,8 +101,10 @@ class Segment(Layer):
         fourth = strokes[-3]
         sixth = strokes[-1]
 
-        if (self._is_top(current["item"]) and sixth["item"]["High"] >= fourth["item"]["High"]
-                or self._is_bottom(current["item"]) and sixth["item"]["Low"] <= fourth["item"]["Low"]):
+        if (self._is_top(current["item"])
+                and sixth["item"]["High"] >= fourth["item"]["High"]
+                or self._is_bottom(current["item"])
+                and sixth["item"]["Low"] <= fourth["item"]["Low"]):
             self._keep_item(segments, current["item"])
             if self._is_top(current["item"]):
                 self._keep_item(segments, self._middle_lowest(strokes)["item"])

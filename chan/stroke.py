@@ -62,8 +62,10 @@ class Stroke(Layer):
         current = fractals[0]
         second = fractals[2]
 
-        if (self._is_top(current["item"]) and second["item"]["High"] >= current["item"]["High"]
-                or self._is_bottom(current["item"]) and second["item"]["Low"] <= current["item"]["Low"]):
+        if (self._is_top(current["item"])
+                and second["item"]["High"] >= current["item"]["High"]
+                or self._is_bottom(current["item"])
+                and second["item"]["Low"] <= current["item"]["Low"]):
             return [second]
         return fractals
 
@@ -82,8 +84,10 @@ class Stroke(Layer):
         current = fractals[0]
         fourth = fractals[4]
 
-        if (self._is_top(current["item"]) and fourth["item"]["High"] >= current["item"]["High"]
-                or self._is_bottom(current["item"]) and fourth["item"]["Low"] <= current["item"]["Low"]):
+        if (self._is_top(current["item"])
+                and fourth["item"]["High"] >= current["item"]["High"]
+                or self._is_bottom(current["item"])
+                and fourth["item"]["Low"] <= current["item"]["Low"]):
             return [fourth]
         return fractals
 
